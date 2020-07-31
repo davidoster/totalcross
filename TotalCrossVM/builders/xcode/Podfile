@@ -16,7 +16,7 @@ target 'TotalCross' do
 end
 
 target 'tcvm' do
-  project 'tcvm.xcodeproj'
+  project 'TCVM.xcodeproj'
 
   pod 'Firebase/Core', '4.3.0'
   pod 'Firebase/Messaging', '4.3.0'

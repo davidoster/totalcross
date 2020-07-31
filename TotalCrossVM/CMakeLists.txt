@@ -3,14 +3,23 @@ cmake_minimum_required(VERSION 3.13.5)
 # set the project name
 project(TCVM VERSION 1.0)
 
+if(NOT DEFINED BUILD_SHARED_LIBS AND NOT DEFINED TCVM_SHARED)
+  if(CMAKE_GENERATOR STREQUAL Xcode)
+    set(TCVM_SHARED OFF) 
+    message("tcvm: ${TCVM_SHARED}")  
+  else() # others
+    set(TCVM_SHARED ON) 
+  endif()
+endif()
+
 # Find SDL2 and Skia
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
 
 # Find SDL2
-if(NOT DEFINED ANDROID_ABI AND NOT MSVC)
+IF (NOT (DEFINED ANDROID_ABI OR MSVC OR CMAKE_GENERATOR STREQUAL Xcode))
   find_package(SDL2 REQUIRED)
   include_directories(${SDL2_INCLUDE_DIR})
-endif(NOT DEFINED ANDROID_ABI AND NOT MSVC)
+ENDIF (NOT (DEFINED ANDROID_ABI OR MSVC OR CMAKE_GENERATOR STREQUAL Xcode))
 
 # Find Skia
 if(NOT MSVC)
@@ -34,6 +43,7 @@ SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${UNIX_CXX_FLAGS} ${MACOS_CXX_FLAGS} -s
 
 set(TC_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(LB_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src/litebase")
+
 
 set(SOURCES
     ${TC_SRCDIR}/axtls/aes.c
@@ -312,13 +322,62 @@ if(NOT MSVC)
     ${LB_SRCDIR}/parser/SQLInsertStatement.c
     ${LB_SRCDIR}/parser/SQLSelectStatement.c
     ${LB_SRCDIR}/parser/SQLUpdateStatement.c
-  )
+    )
 endif(NOT MSVC)
 
+if(CMAKE_GENERATOR STREQUAL Xcode)
+  set(TCVM_iOS_FILES
+    ${TC_SRCDIR}/../builders/xcode/libtcvm.h
+    ${TC_SRCDIR}/../builders/xcode/libtcvm.m
+    ${TC_SRCDIR}/../builders/xcode/tcvm-Prefix.pch
+    
+    #event\\darwin
+    ${TC_SRCDIR}/event/darwin/event.m
+
+    #init\\darwin
+    ${TC_SRCDIR}/init/darwin/demo_c.m
+    ${TC_SRCDIR}/init/darwin/serialnum.m
+    ${TC_SRCDIR}/init/darwin/startup_c.m
+    ${TC_SRCDIR}/init/darwin/serialnum.m
+
+    #util\\darwin
+    ${TC_SRCDIR}/util/darwin/debug_c.m
+    
+    #nm\\ui\\darwin
+    ${TC_SRCDIR}/nm/ui/darwin/mainview.m
+    ${TC_SRCDIR}/nm/ui/darwin/media_Camera_c.m
+    ${TC_SRCDIR}/nm/ui/darwin/Window_c.m
+    ${TC_SRCDIR}/nm/ui/darwin/YoutubePlayerController.m
+    ${TC_SRCDIR}/nm/ui/darwin/childview.m
+    ${TC_SRCDIR}/nm/ui/darwin/sipargs.m
+
+    #nm\\ui\\darwin
+    ${TC_SRCDIR}/nm/ui/darwin/image_Image_c.m
+    ${TC_SRCDIR}/nm/ui/darwin/media_Sound_c.m
+  
+    #nm\\notification\\darwin
+    ${TC_SRCDIR}/nm/notification/darwin/notification_c.m
+
+    #nm\\sys\\darwin
+    ${TC_SRCDIR}/nm/sys/darwin/Vm_c.m
+
+    #nm\\firebase\\darwin
+    ${TC_SRCDIR}/nm/firebase/darwin/firebase_c.m
+
+    #nm\\util\\darwin
+    ${TC_SRCDIR}/nm/util/darwin/Locale.m
+
+    #nm\\phone\\posix
+    ${TC_SRCDIR}/nm/phone/posix/Dial_c.m
+    
+    
+  )
+endif()
+
 if(DEFINED SDL2_LIBRARY)
- set(TC_SDL_SOURCES
-   ${TC_SRCDIR}/init/tcsdl.cpp
- )
+  set(TC_SDL_SOURCES
+    ${TC_SRCDIR}/init/tcsdl.cpp
+  )
 endif(DEFINED SDL2_LIBRARY)
 
 if(DEFINED ANDROID_ABI)
@@ -334,6 +393,7 @@ if(MSVC AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 9 2008 Pocket PC 2003 (AR
 endif()
 
 include_directories(${TC_SRCDIR})
+include_directories(${TC_SRCDIR}/nm/ui/darwin)
 include_directories(${TC_SRCDIR}/axtls)
 include_directories(${TC_SRCDIR}/dx)
 include_directories(${TC_SRCDIR}/event)
@@ -409,7 +469,17 @@ elseif(MSVC AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 9 2008 Pocket PC 2003
 elseif(MSVC)
   add_definitions(-DFORCE_LIBC_ALLOC -DWIN32 -D_REENTRANT -DHAVE_MREMAP=0 -DLITTLE_ENDIAN)
 else()
-  add_definitions(-DHEADLESS -Dlinux -lpthread -DFORCE_LIBC_ALLOC -D_REENTRANT -DPOSIX -DHAVE_MREMAP=0 -fPIC -Wunused-function -Wno-import -fno-strict-aliasing)
+  if(CMAKE_GENERATOR STREQUAL Xcode)
+    add_definitions(-Ddarwin)
+    set(CMAKE_STATIC_LINKER_FLAGS ${CMAKE_STATIC_LINKER_FLAGS} "-lskia")
+    set(CMAKE_XCODE_ATTRIBUTE_LIBRARY_SEARCH_PATHS ${SKIA_LIBRARY_DIRS})
+    set(CMAKE_XCODE_ATTRIBUTE_LINK_BINARIES_WITH_LIBRARIES ${SKIA_LIBRARIES})
+    set(CMAKE_OSX_SYSROOT iphoneos)
+    set(CMAKE_OSX_ARCHITECTURES "$(ARCHS_STANDARD)")
+  else()
+    add_definitions(-DHEADLESS)
+  endif()
+  add_definitions(-Dlinux -lpthread -DFORCE_LIBC_ALLOC -D_REENTRANT -DPOSIX -DHAVE_MREMAP=0 -fPIC -Wunused-function -Wno-import -fno-strict-aliasing)
 endif(DEFINED ANDROID_ABI)
 add_definitions(-DTOTALCROSS -DTC_EXPORTS)
 
@@ -420,10 +490,37 @@ endif(APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
 link_directories(${PROJECT_SOURCE_DIR})
 
 # add the library
-add_library(tcvm SHARED ${SOURCES} ${TC_WCE_SOURCES} ${TC_MSVC_SOURCES} ${TC_NOT_MSVC_SOURCES} ${LB_SOURCES} ${TC_SKIA_SOURCES} ${TC_SDL_SOURCES} ${TC_ANDROID_SOURCES})
+set(LIBRARY_ARGS ${SOURCES} ${TC_WCE_SOURCES} ${TC_MSVC_SOURCES} ${TC_NOT_MSVC_SOURCES} ${LB_SOURCES} ${TC_SKIA_SOURCES} ${TC_SDL_SOURCES} ${TC_ANDROID_SOURCES} ${TCVM_iOS_FILES})
+
+if(TCVM_SHARED)
+  add_library(tcvm SHARED ${LIBRARY_ARGS})
+else()
+  add_library(tcvm STATIC ${LIBRARY_ARGS})
+endif()
+
+# XCode Properties
+if(CMAKE_GENERATOR STREQUAL Xcode)
+  
+  # adds $(inherited) to HEADER_SEARCH_PATHS in order to get pod libraries headers
+  get_target_property(INCLUDED_HEADERS tcvm INCLUDE_DIRECTORIES)
+  set(INCLUDED_HEADERS "$(inherited)" ${INCLUDED_HEADERS})
+  string(REPLACE ";" " " INCLUDED_HEADERS_STR "${INCLUDED_HEADERS}")
+  
+  set_target_properties(
+    tcvm
+    PROPERTIES
+    XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
+    XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER com.totalcross.vm
+    XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET 8.0
+    XCODE_ATTRIBUTE_CLANG_ENABLE_MODULES YES
+    XCODE_ATTRIBUTE_GCC_PREFIX_HEADER "${TC_SRCDIR}/../builders/xcode/tcvm-Prefix.pch"
+    XCODE_ATTRIBUTE_GCC_PRECOMPILE_PREFIX_HEADER "YES"
+    XCODE_ATTRIBUTE_HEADER_SEARCH_PATHS "${INCLUDED_HEADERS_STR}"
+  )
+endif()
 
 if(DEFINED SDL2_LIBRARY)
- target_link_libraries(tcvm ${SDL2_LIBRARY})
+  target_link_libraries(tcvm ${SDL2_LIBRARY})
 endif(DEFINED SDL2_LIBRARY)
 
 if(DEFINED ANDROID_ABI)
@@ -503,6 +600,7 @@ endif(MSVC)
 
 
 # add the executable
+if(NOT CMAKE_GENERATOR STREQUAL Xcode)
 add_executable(Launcher ${TC_SRCDIR}/launchers/${LAUNCHER_PATH}/Launcher.c)
 
 # target_compile_options(Launcher PRIVATE /GS-)
@@ -513,3 +611,4 @@ if(MSVC)
 else()
   target_link_libraries(Launcher dl)
 endif(MSVC)
+endif()
