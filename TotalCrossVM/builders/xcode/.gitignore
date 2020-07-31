@@ -29,3 +29,10 @@ DerivedData/
 
 ## Gcc Patch
 /*.gcno
+
+## Cmake generated files
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+TCVM.xcodeproj
+cmake_install.cmake
