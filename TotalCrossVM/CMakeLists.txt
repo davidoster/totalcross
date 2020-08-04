@@ -263,6 +263,10 @@ set(SOURCES
     ${TC_SRCDIR}/nm/io/device/gpiod/Gpiod.c
     # ${TC_SRCDIR}/nm/io/device/gpiod/posix/gpiodLib.c
 
+    )
+
+if(NOT MSVC)
+  set(LB_SOURCES
     ${LB_SRCDIR}/lbFile.c
     ${LB_SRCDIR}/PlainDB.c
     ${LB_SRCDIR}/TCVMLib.c
@@ -292,7 +296,8 @@ set(SOURCES
     ${LB_SRCDIR}/parser/SQLInsertStatement.c
     ${LB_SRCDIR}/parser/SQLSelectStatement.c
     ${LB_SRCDIR}/parser/SQLUpdateStatement.c
-    )
+  )
+endif(NOT MSVC)
 
 if(DEFINED SDL2_LIBRARY)
  set(TC_SDL_SOURCES
@@ -382,7 +387,7 @@ endif(APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
 link_directories(${PROJECT_SOURCE_DIR})
 
 # add the library
-add_library(tcvm SHARED ${SOURCES} ${TC_SDL_SOURCES} ${TC_ANDROID_SOURCES})
+add_library(tcvm SHARED ${SOURCES} ${TC_SDL_SOURCES} ${LB_SOURCES} ${TC_ANDROID_SOURCES})
 
 if(DEFINED SDL2_LIBRARY)
  target_link_libraries(tcvm ${SDL2_LIBRARY})
