@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.13.5)
 
 # set the project name
 project(TCVM VERSION 1.0)
@@ -127,7 +127,6 @@ set(SOURCES
 
     ${TC_SRCDIR}/nm/lang/Reflection.c
     ${TC_SRCDIR}/nm/lang/Class.c
-    ${TC_SRCDIR}/nm/lang/cpproc.c
     ${TC_SRCDIR}/nm/lang/Runtime.c
     ${TC_SRCDIR}/nm/lang/Object.c
     ${TC_SRCDIR}/nm/lang/String.c
@@ -257,12 +256,24 @@ set(SOURCES
     ${TC_SRCDIR}/nm/cielo/printer/PrinterManager.c
 
     ${TC_SRCDIR}/nm/qrcode/qrcode_generation.c
-    ${TC_SRCDIR}/nm/qrcode/qrcode.c
 
     ${TC_SRCDIR}/nm/io/device/gpiod/Gpiod.c
-    # ${TC_SRCDIR}/nm/io/device/gpiod/posix/gpiodLib.c
 
     )
+
+if(MSVC)
+  set(TC_MSVC_SOURCES
+    ${TC_SRCDIR}/util/winsockLib.c
+    ${TC_SRCDIR}/nm/qrcode/win/qrcodegen.c
+  )
+endif(MSVC)
+
+if(NOT MSVC)
+  set(TC_NOT_MSVC_SOURCES
+    ${TC_SRCDIR}/nm/lang/posix/cpproc.c
+    ${TC_SRCDIR}/nm/qrcode/qrcode.c
+  )
+endif(NOT MSVC)
 
 if(DEFINED SKIA_LIBRARIES)
   set(TC_SKIA_SOURCES
@@ -316,6 +327,12 @@ if(DEFINED ANDROID_ABI)
   )
 endif(DEFINED ANDROID_ABI)
 
+if(MSVC AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 9 2008 Pocket PC 2003 (ARMV4)")
+  set(TC_WCE_SOURCES
+    ${TC_SRCDIR}/util/win/aygshellLib.c
+  )
+endif()
+
 include_directories(${TC_SRCDIR})
 include_directories(${TC_SRCDIR}/axtls)
 include_directories(${TC_SRCDIR}/dx)
@@ -354,7 +371,14 @@ include_directories(${TC_SRCDIR}/tcvm)
 include_directories(${TC_SRCDIR}/util)
 include_directories(${TC_SRCDIR}/util/android)
 include_directories(${TC_SRCDIR}/zlib)
-include_directories(${TC_SRCDIR}/nm/qrcode)
+
+if(MSVC)
+  include_directories(${TC_SRCDIR}/nm/qrcode/win)
+  include_directories(${TC_SRCDIR}/core/wince)
+else()
+  include_directories(${TC_SRCDIR}/nm/qrcode)
+  include_directories(${TC_SRCDIR}/nm/lang/posix)
+endif(MSVC)
 
 if(DEFINED SKIA_LIBRARIES)
   include_directories(${SKIA_DIR}/android)
@@ -380,7 +404,11 @@ if(DEFINED ANDROID_ABI)
   if ("${ANDROID_ABI}" MATCHES "arm64-v8a")
 	  add_definitions(-DFORCE_LIBC_ALLOC)
   endif()
-ELSE()
+elseif(MSVC AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 9 2008 Pocket PC 2003 (ARMV4)")
+  add_definitions(-DUNICODE -D_WIN32_WCE=$(CEVER) -D_MSC_VER=1200 -D_REENTRANT -DLITTLE_ENDIAN)
+elseif(MSVC)
+  add_definitions(-DFORCE_LIBC_ALLOC -DWIN32 -D_REENTRANT -DHAVE_MREMAP=0 -DLITTLE_ENDIAN)
+else()
   add_definitions(-DHEADLESS -Dlinux -lpthread -DFORCE_LIBC_ALLOC -D_REENTRANT -DPOSIX -DHAVE_MREMAP=0 -fPIC -Wunused-function -Wno-import -fno-strict-aliasing)
 endif(DEFINED ANDROID_ABI)
 add_definitions(-DTOTALCROSS -DTC_EXPORTS)
@@ -392,7 +420,7 @@ endif(APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
 link_directories(${PROJECT_SOURCE_DIR})
 
 # add the library
-add_library(tcvm SHARED ${SOURCES} ${LB_SOURCES} ${TC_SKIA_SOURCES} ${TC_SDL_SOURCES} ${TC_ANDROID_SOURCES})
+add_library(tcvm SHARED ${SOURCES} ${TC_WCE_SOURCES} ${TC_MSVC_SOURCES} ${TC_NOT_MSVC_SOURCES} ${LB_SOURCES} ${TC_SKIA_SOURCES} ${TC_SDL_SOURCES} ${TC_ANDROID_SOURCES})
 
 if(DEFINED SDL2_LIBRARY)
  target_link_libraries(tcvm ${SDL2_LIBRARY})
@@ -442,20 +470,46 @@ if(DEFINED ANDROID_ABI)
                         # included in the NDK.
                         ${log-lib} 
                         ${jnigraphics-lib} )
-ELSE()
+elseif(MSVC)
+  if(${CMAKE_GENERATOR} STREQUAL "Visual Studio 9 2008 Pocket PC 2003 (ARMV4)")
+    target_link_libraries(tcvm secchk.lib coredll.lib corelibc.lib ole32.lib oleaut32.lib uuid.lib commctrl.lib)
+  else()
+    target_link_libraries(tcvm winmm.lib ws2_32.lib imm32.lib Rasapi32.lib)
+  endif()
+else()
   target_link_libraries(tcvm ${SKIA_LIBRARIES} pthread stdc++)
   if(NOT APPLE AND UNIX)
     target_link_libraries(tcvm EGL fontconfig)
   endif(NOT APPLE AND UNIX)
 endif(DEFINED ANDROID_ABI)
 
-
-
-
 set(TC_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 include_directories(${TC_SRCDIR}/util)
 
+if(MSVC)
+  set(CMAKE_EXE_LINKER_FLAGS
+    "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB  /SUBSYSTEM:WINDOWS /LARGEADDRESSAWARE /DYNAMICBASE:NO"
+  )
+  set(LAUNCHER_PATH
+    "win"
+  )
+else()
+  set(LAUNCHER_PATH
+    "linux"
+  ) 
+endif(MSVC)
+
+
+
 # add the executable
-add_executable(Launcher ${TC_SRCDIR}/launchers/linux/Launcher.c)
-target_link_libraries(Launcher dl)
+add_executable(Launcher ${TC_SRCDIR}/launchers/${LAUNCHER_PATH}/Launcher.c)
+
+# target_compile_options(Launcher PRIVATE /GS-)
+# target_link_options(Launcher PRIVATE /ENTRY:)
+
+if(MSVC)
+  target_link_libraries(Launcher MSVCRT.lib)
+else()
+  target_link_libraries(Launcher dl)
+endif(MSVC)
