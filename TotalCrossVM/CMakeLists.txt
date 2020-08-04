@@ -158,7 +158,6 @@ set(SOURCES
     ${TC_SRCDIR}/nm/sys/Time.c
     ${TC_SRCDIR}/nm/sys/Convert.c
 
-    ${TC_SRCDIR}/nm/ui/android/skia.cpp
     ${TC_SRCDIR}/nm/ui/gfx_Graphics.c
     ${TC_SRCDIR}/nm/ui/event_Event.c
     ${TC_SRCDIR}/nm/ui/Control.c
@@ -264,6 +263,12 @@ set(SOURCES
     # ${TC_SRCDIR}/nm/io/device/gpiod/posix/gpiodLib.c
 
     )
+
+if(DEFINED SKIA_LIBRARIES)
+  set(TC_SKIA_SOURCES
+    ${TC_SRCDIR}/nm/ui/android/skia.cpp
+  )
+endif(DEFINED SKIA_LIBRARIES)
 
 if(NOT MSVC)
   set(LB_SOURCES
@@ -387,7 +392,7 @@ endif(APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
 link_directories(${PROJECT_SOURCE_DIR})
 
 # add the library
-add_library(tcvm SHARED ${SOURCES} ${TC_SDL_SOURCES} ${LB_SOURCES} ${TC_ANDROID_SOURCES})
+add_library(tcvm SHARED ${SOURCES} ${LB_SOURCES} ${TC_SKIA_SOURCES} ${TC_SDL_SOURCES} ${TC_ANDROID_SOURCES})
 
 if(DEFINED SDL2_LIBRARY)
  target_link_libraries(tcvm ${SDL2_LIBRARY})
