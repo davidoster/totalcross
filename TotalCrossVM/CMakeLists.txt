@@ -603,8 +603,10 @@ endif(MSVC)
 if(NOT CMAKE_GENERATOR STREQUAL Xcode)
 add_executable(Launcher ${TC_SRCDIR}/launchers/${LAUNCHER_PATH}/Launcher.c)
 
-# target_compile_options(Launcher PRIVATE /GS-)
-# target_link_options(Launcher PRIVATE /ENTRY:)
+if(MSVC AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 9 2008 Pocket PC 2003 (ARMV4)")
+  target_compile_options(Launcher PRIVATE /GS-)
+  target_link_options(Launcher PRIVATE /ENTRY:)
+endif()
 
 if(MSVC)
   target_link_libraries(Launcher MSVCRT.lib)
