@@ -3,32 +3,37 @@ cmake_minimum_required(VERSION 3.4.1)
 # set the project name
 project(TCVM VERSION 1.0)
 
-# Find SDL2 and OpenGL
+# Find SDL2 and Skia
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
+
 # Find SDL2
-IF (NOT DEFINED ANDROID_ABI)
+if(NOT DEFINED ANDROID_ABI AND NOT MSVC)
   find_package(SDL2 REQUIRED)
   include_directories(${SDL2_INCLUDE_DIR})
-ENDIF (NOT DEFINED ANDROID_ABI)
+endif(NOT DEFINED ANDROID_ABI AND NOT MSVC)
 
 # Find Skia
-find_package(Skia REQUIRED)
-include_directories(${SKIA_INCLUDE_DIRS})
-#find_package(SDL2 REQUIRED COMPONENTS main)
-if(NOT WIN32)
-#    find_package(OpenGL REQUIRED)
-endif()
+if(NOT MSVC)
+  find_package(Skia REQUIRED)
+  include_directories(${SKIA_INCLUDE_DIRS})
+endif(NOT MSVC)
 
-# SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wno-everything -std=c11 -mmacosx-version-min=10.11")
-# SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wno-everything -std=c++11 -mmacosx-version-min=10.11")
-SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wno-everything")
-SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wno-everything -std=c++11 ")
+# Set C/CXX flags
+if(UNIX)
+  set(UNIX_C_FLAGS "-Wno-everything")
+  set(UNIX_CXX_FLAGS "-Wno-everything")
+endif(UNIX)
 
+if(APPLE)
+  set(MACOS_C_FLAGS "-mmacosx-version-min=10.11")
+  set(MACOS_CXX_FLAGS "-mmacosx-version-min=10.11")
+endif(APPLE)
+
+SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${UNIX_C_FLAGS} ${MACOS_C_FLAGS}")
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${UNIX_CXX_FLAGS} ${MACOS_CXX_FLAGS} -std=c++11")
 
 set(TC_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(LB_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src/litebase")
-#set(SKIA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/skia")
-
 
 set(SOURCES
     ${TC_SRCDIR}/axtls/aes.c
@@ -289,17 +294,17 @@ set(SOURCES
     ${LB_SRCDIR}/parser/SQLUpdateStatement.c
     )
 
-IF(DEFINED SDL2_LIBRARY)
-  set(TC_SDL_SOURCES
-    ${TC_SRCDIR}/init/tcsdl.cpp
-  )
-ENDIF(DEFINED SDL2_LIBRARY)
+if(DEFINED SDL2_LIBRARY)
+ set(TC_SDL_SOURCES
+   ${TC_SRCDIR}/init/tcsdl.cpp
+ )
+endif(DEFINED SDL2_LIBRARY)
 
-IF(DEFINED ANDROID_ABI)
+if(DEFINED ANDROID_ABI)
   set(TC_ANDROID_SOURCES
     ${TC_SRCDIR}/nm/money/money.c
   )
-ENDIF(DEFINED ANDROID_ABI)
+endif(DEFINED ANDROID_ABI)
 
 include_directories(${TC_SRCDIR})
 include_directories(${TC_SRCDIR}/axtls)
@@ -341,52 +346,49 @@ include_directories(${TC_SRCDIR}/util/android)
 include_directories(${TC_SRCDIR}/zlib)
 include_directories(${TC_SRCDIR}/nm/qrcode)
 
-#include_directories(${SKIA_DIR}/android)
-#include_directories(${SKIA_DIR}/atlastext)
-#include_directories(${SKIA_DIR}/c)
-#include_directories(${SKIA_DIR}/codec)
-#include_directories(${SKIA_DIR}/config)
-#include_directories(${SKIA_DIR}/core)
-#include_directories(${SKIA_DIR}/effects)
-#include_directories(${SKIA_DIR}/encode)
-#include_directories(${SKIA_DIR}/gpu)
-#include_directories(${SKIA_DIR}/mac)
-#include_directories(${SKIA_DIR}/pathops)
-#include_directories(${SKIA_DIR}/ports)
-#include_directories(${SKIA_DIR}/private)
-#include_directories(${SKIA_DIR}/svg)
-#include_directories(${SKIA_DIR}/utils)
+if(DEFINED SKIA_LIBRARIES)
+  include_directories(${SKIA_DIR}/android)
+  include_directories(${SKIA_DIR}/atlastext)
+  include_directories(${SKIA_DIR}/c)
+  include_directories(${SKIA_DIR}/codec)
+  include_directories(${SKIA_DIR}/config)
+  include_directories(${SKIA_DIR}/core)
+  include_directories(${SKIA_DIR}/effects)
+  include_directories(${SKIA_DIR}/encode)
+  include_directories(${SKIA_DIR}/gpu)
+  include_directories(${SKIA_DIR}/mac)
+  include_directories(${SKIA_DIR}/pathops)
+  include_directories(${SKIA_DIR}/ports)
+  include_directories(${SKIA_DIR}/private)
+  include_directories(${SKIA_DIR}/svg)
+  include_directories(${SKIA_DIR}/utils)
+endif(DEFINED SKIA_LIBRARIES)
 
-# add_definitions(-DTOTALCROSS -DTC_EXPORTS -DPOSIX -Dlinux -DHEADLESS -DHAVE_MREMAP=0 -fPIC -Wunused-function -Wno-import -fno-strict-aliasing)
-IF(DEFINED ANDROID_ABI)
+# add_definitions
+if(DEFINED ANDROID_ABI)
   add_definitions(-DANDROID)
   if ("${ANDROID_ABI}" MATCHES "arm64-v8a")
 	  add_definitions(-DFORCE_LIBC_ALLOC)
   endif()
 ELSE()
   add_definitions(-DHEADLESS -Dlinux -lpthread -DFORCE_LIBC_ALLOC -D_REENTRANT -DPOSIX -DHAVE_MREMAP=0 -fPIC -Wunused-function -Wno-import -fno-strict-aliasing)
-ENDIF(DEFINED ANDROID_ABI)
+endif(DEFINED ANDROID_ABI)
 add_definitions(-DTOTALCROSS -DTC_EXPORTS)
 
-IF (APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
+if(APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DCURRENT_DEBUG_PATH="${CMAKE_CURRENT_BINARY_DIR}")
-ENDIF(APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
-
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
-#find_package(SDL2 REQUIRED)
-
+endif(APPLE AND CMAKE_BUILD_TYPE MATCHES "Debug")
 
 link_directories(${PROJECT_SOURCE_DIR})
-
 
 # add the library
 add_library(tcvm SHARED ${SOURCES} ${TC_SDL_SOURCES} ${TC_ANDROID_SOURCES})
 
-IF(DEFINED SDL2_LIBRARY)
-  target_link_libraries(tcvm ${SDL2_LIBRARY})
-ENDIF(DEFINED SDL2_LIBRARY)
+if(DEFINED SDL2_LIBRARY)
+ target_link_libraries(tcvm ${SDL2_LIBRARY})
+endif(DEFINED SDL2_LIBRARY)
 
-IF (DEFINED ANDROID_ABI)
+if(DEFINED ANDROID_ABI)
   add_library(libskia SHARED IMPORTED)
   set_target_properties(# Specifies the target library.
                         libskia
@@ -432,10 +434,11 @@ IF (DEFINED ANDROID_ABI)
                         ${jnigraphics-lib} )
 ELSE()
   target_link_libraries(tcvm ${SKIA_LIBRARIES} pthread stdc++)
-  IF (NOT APPLE AND UNIX)
+  if(NOT APPLE AND UNIX)
     target_link_libraries(tcvm EGL fontconfig)
-  ENDIF(NOT APPLE AND UNIX)
-ENDIF (DEFINED ANDROID_ABI)
+  endif(NOT APPLE AND UNIX)
+endif(DEFINED ANDROID_ABI)
+
 
 
 
