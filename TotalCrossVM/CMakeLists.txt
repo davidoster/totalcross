@@ -479,7 +479,7 @@ else()
   else()
     add_definitions(-DHEADLESS)
   endif()
-  add_definitions(-Dlinux -lpthread -DFORCE_LIBC_ALLOC -D_REENTRANT -DPOSIX -DHAVE_MREMAP=0 -fPIC -Wunused-function -Wno-import -fno-strict-aliasing)
+  add_definitions(-Dlinux -DFORCE_LIBC_ALLOC -D_REENTRANT -DPOSIX -DHAVE_MREMAP=0 -fPIC -Wunused-function -Wno-import -fno-strict-aliasing)
 endif(DEFINED ANDROID_ABI)
 add_definitions(-DTOTALCROSS -DTC_EXPORTS)
 
