@@ -29,8 +29,8 @@ endif(NOT MSVC)
 
 # Set C/CXX flags
 if(UNIX)
-  set(UNIX_C_FLAGS "-Wno-everything")
-  set(UNIX_CXX_FLAGS "-Wno-everything")
+  set(UNIX_C_FLAGS "-Wall")
+  set(UNIX_CXX_FLAGS "-Wall")
 endif(UNIX)
 
 if(APPLE)
