@@ -591,17 +591,21 @@ if(MSVC)
   set(LAUNCHER_PATH
     "win"
   )
+  set(LAUNCHER_RESOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/builders/vc2008/tc.rc
+  )
 else()
   set(LAUNCHER_PATH
     "linux"
   ) 
 endif(MSVC)
 
-
-
 # add the executable
 if(NOT CMAKE_GENERATOR STREQUAL Xcode)
-add_executable(Launcher ${TC_SRCDIR}/launchers/${LAUNCHER_PATH}/Launcher.c)
+add_executable(Launcher 
+  ${TC_SRCDIR}/launchers/${LAUNCHER_PATH}/Launcher.c
+  ${LAUNCHER_RESOURCES}
+)
 
 if(MSVC AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 9 2008 Pocket PC 2003 (ARMV4)")
   target_compile_options(Launcher PRIVATE /GS-)
